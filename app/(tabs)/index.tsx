@@ -20,7 +20,8 @@ async function getPdfBase64() {
 }
 
 export default function HomeScreen() {
-  const [isLoading, setIsLoading] = React.useState(false);
+  const [isFluxo1Loading, setIsFluxo1Loading] = React.useState(false);
+  const [isFluxo2Loading, setIsFluxo2Loading] = React.useState(false);
 
   async function createFile(filename: string) {
     const permissions =
@@ -44,7 +45,23 @@ export default function HomeScreen() {
     }
   }
 
-  async function savePdf(base64String: string, uri: string) {
+  async function savePdfFluxo1(base64String: string, uri: string) {
+    try {
+      await FileSystem.writeAsStringAsync(uri, base64String, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+      await Sharing.shareAsync(uri, {
+        dialogTitle: "PDF salvo com sucesso",
+        mimeType: "application/pdf",
+        UTI: "com.adobe.pdf",
+      });
+    } catch (e) {
+      console.log("erro ao escrever o arquivo: ", e);
+      return;
+    }
+  }
+
+  async function savePdfFluxo2(base64String: string, uri: string) {
     try {
       if (Platform.OS === "android") {
         await FileSystem.StorageAccessFramework.writeAsStringAsync(
@@ -58,6 +75,7 @@ export default function HomeScreen() {
         });
         await Sharing.shareAsync(uri, {
           dialogTitle: "PDF salvo com sucesso",
+          mimeType: "application/pdf",
           UTI: "com.adobe.pdf",
         });
       }
@@ -76,12 +94,27 @@ export default function HomeScreen() {
     }
   }
 
-  async function handleDownload() {
-    setIsLoading(true);
+  async function handleDownloadFluxo1() {
+    setIsFluxo1Loading(true);
     const pdfBase64 = await downloadPdfBase64();
     if (!pdfBase64) {
       Alert.alert("Erro", "Erro ao baixar o pdf");
-      setIsLoading(false);
+      setIsFluxo1Loading(false);
+      return;
+    }
+    const randomString = new Date().getTime().toString();
+    const filename = `${randomString}.pdf`;
+    const uri = `${FileSystem.documentDirectory}${filename}`;
+    await savePdfFluxo1(pdfBase64, uri);
+    setIsFluxo1Loading(false);
+  }
+
+  async function handleDownloadFluxo2() {
+    setIsFluxo2Loading(true);
+    const pdfBase64 = await downloadPdfBase64();
+    if (!pdfBase64) {
+      Alert.alert("Erro", "Erro ao baixar o pdf");
+      setIsFluxo2Loading(false);
       return;
     }
     const randomString = new Date().getTime().toString();
@@ -94,23 +127,53 @@ export default function HomeScreen() {
     }
     if (!uri) {
       Alert.alert("Erro", "Erro ao criar o arquivo");
-      setIsLoading(false);
+      setIsFluxo2Loading(false);
       return;
     }
     console.log(uri);
-    await savePdf(pdfBase64, uri);
-
-    setIsLoading(false);
+    try {
+      await savePdfFluxo2(pdfBase64, uri);
+      Alert.alert(
+        "Sucesso",
+        "Nota fiscal [número] baixada com sucesso. Acesse seu armazenamento interno."
+      );
+    } catch (e) {
+      Alert.alert("Erro", "Erro ao salvar o pdf");
+    }
+    setIsFluxo2Loading(false);
   }
 
   return (
     <View style={styles.screenContainer}>
-      <View>
-        <Text>Baixar pdf:</Text>
-        {isLoading ? (
+      <View style={styles.container}>
+        <Text style={styles.title}>Fluxo 1</Text>
+        <Text style={styles.description}>
+          android e ios salvam no diretório do app e permitem compartilhar após
+          o download
+        </Text>
+        <Text style={styles.description}>
+          não fica acessível depois, só via app
+        </Text>
+        {isFluxo1Loading ? (
           <ActivityIndicator />
         ) : (
-          <Button onPress={handleDownload} title="Baixar" />
+          <Button onPress={handleDownloadFluxo1} title="Baixar" />
+        )}
+      </View>
+
+      <View style={styles.container}>
+        <Text style={styles.title}>Fluxo 2</Text>
+        <Text style={styles.description}>
+          android salva em uma pasta acessível, o usuário precisa dar permissão
+        </Text>
+        <Text style={styles.description}>
+          ios mantem igual o fluxo 1, não ficando acessível após fechar o modal
+          de compartilhamento
+        </Text>
+        {isFluxo2Loading ? (
+          <ActivityIndicator />
+        ) : (
+          <Button onPress={handleDownloadFluxo2} title="Baixar" />
         )}
       </View>
     </View>
@@ -122,6 +185,23 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    gap: 8,
+    gap: 20,
+    paddingHorizontal: 20,
+  },
+  container: {
+    borderWidth: 1,
+    borderColor: "black",
+    borderRadius: 10,
+    padding: 10,
+    width: "100%",
+    gap: 4,
+  },
+  title: {
+    fontSize: 20,
+    fontWeight: "bold",
+  },
+  description: {
+    fontSize: 16,
+    color: "gray",
   },
 });

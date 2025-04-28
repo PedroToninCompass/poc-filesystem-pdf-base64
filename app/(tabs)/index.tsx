@@ -1,74 +1,112 @@
-import { Image, StyleSheet, Platform } from 'react-native';
+import {
+  View,
+  StyleSheet,
+  Button,
+  Text,
+  Alert,
+  Platform,
+  ActivityIndicator,
+} from "react-native";
+import * as FileSystem from "expo-file-system";
+import React from "react";
 
-import { HelloWave } from '@/components/HelloWave';
-import ParallaxScrollView from '@/components/ParallaxScrollView';
-import { ThemedText } from '@/components/ThemedText';
-import { ThemedView } from '@/components/ThemedView';
+async function getPdfBase64() {
+  const base64String =
+    "JVBERi0xLjEKJcKlwrHDqwoKMSAwIG9iagogIDw8IC9UeXBlIC9DYXRhbG9nCiAgICAgL1BhZ2VzIDIgMCBSCiAgPj4KZW5kb2JqCgoyIDAgb2JqCiAgPDwgL1R5cGUgL1BhZ2VzCiAgICAgL0tpZHMgWzMgMCBSXQogICAgIC9Db3VudCAxCiAgICAgL01lZGlhQm94IFswIDAgMzAwIDE0NF0KICA+PgplbmRvYmoKCjMgMCBvYmoKICA8PCAgL1R5cGUgL1BhZ2UKICAgICAgL1BhcmVudCAyIDAgUgogICAgICAvUmVzb3VyY2VzCiAgICAgICA8PCAvRm9udAogICAgICAgICAgIDw8IC9GMQogICAgICAgICAgICAgICA8PCAvVHlwZSAvRm9udAogICAgICAgICAgICAgICAgICAvU3VidHlwZSAvVHlwZTEKICAgICAgICAgICAgICAgICAgL0Jhc2VGb250IC9UaW1lcy1Sb21hbgogICAgICAgICAgICAgICA+PgogICAgICAgICAgID4+CiAgICAgICA+PgogICAgICAvQ29udGVudHMgNCAwIFIKICA+PgplbmRvYmoKCjQgMCBvYmoKICA8PCAvTGVuZ3RoIDU1ID4+CnN0cmVhbQogIEJUCiAgICAvRjEgMTggVGYKICAgIDAgMCBUZAogICAgKEhlbGxvIFdvcmxkKSBUagogIEVUCmVuZHN0cmVhbQplbmRvYmoKCnhyZWYKMCA1CjAwMDAwMDAwMDAgNjU1MzUgZiAKMDAwMDAwMDAxOCAwMDAwMCBuIAowMDAwMDAwMDc3IDAwMDAwIG4gCjAwMDAwMDAxNzggMDAwMDAgbiAKMDAwMDAwMDQ1NyAwMDAwMCBuIAp0cmFpbGVyCiAgPDwgIC9Sb290IDEgMCBSCiAgICAgIC9TaXplIDUKICA+PgpzdGFydHhyZWYKNTY1CiUlRU9GCg==";
+  // make a timeout to simulate a delay
+  await new Promise((resolve) => setTimeout(resolve, 2000));
+  return base64String;
+}
 
 export default function HomeScreen() {
+  const [isLoading, setIsLoading] = React.useState(false);
+
+  async function createFile(filename: string) {
+    const permissions =
+      await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
+
+    if (!permissions.granted) {
+      console.log("permissão negada");
+      return;
+    }
+
+    try {
+      const uri = await FileSystem.StorageAccessFramework.createFileAsync(
+        permissions.directoryUri,
+        filename,
+        "application/pdf"
+      );
+      return uri;
+    } catch (e) {
+      console.log("erro ao criar o arquivo: ", e);
+      return;
+    }
+  }
+
+  async function savePdf(base64String: string, uri: string) {
+    try {
+      await FileSystem.StorageAccessFramework.writeAsStringAsync(
+        uri,
+        base64String,
+        { encoding: FileSystem.EncodingType.Base64 }
+      );
+    } catch (e) {
+      console.log("erro ao escrever o arquivo: ", e);
+      return;
+    }
+  }
+
+  async function downloadPdfBase64() {
+    try {
+      const base64String = await getPdfBase64();
+      return base64String;
+    } catch (e) {
+      console.log("erro ao baixar o base64 do pdf: ", e);
+    }
+  }
+
+  async function handleDownload() {
+    setIsLoading(true);
+    const pdfBase64 = await downloadPdfBase64();
+    if (!pdfBase64) {
+      Alert.alert("Erro", "Erro ao baixar o pdf");
+      setIsLoading(false);
+      return;
+    }
+    const randomString = new Date().getTime().toString();
+    const filename = `${randomString}.pdf`;
+    const uri = await createFile(filename);
+
+    if (!uri) {
+      Alert.alert("Erro", "Erro ao criar o arquivo");
+      setIsLoading(false);
+      return;
+    }
+    console.log(uri);
+    await savePdf(pdfBase64, uri);
+    Alert.alert("Sucesso", "Pdf salvo com sucesso");
+    setIsLoading(false);
+  }
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12'
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-        <ThemedText>
-          Tap the Explore tab to learn more about what's included in this starter app.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          When you're ready, run{' '}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+    <View style={styles.screenContainer}>
+      <View>
+        <Text>Baixar pdf:</Text>
+        {isLoading ? (
+          <ActivityIndicator />
+        ) : (
+          <Button onPress={handleDownload} title="Baixar" />
+        )}
+      </View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  screenContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
     gap: 8,
-  },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
-  },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
   },
 });

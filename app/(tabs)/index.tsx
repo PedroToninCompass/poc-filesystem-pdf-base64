@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import * as FileSystem from "expo-file-system";
+import * as Sharing from "expo-sharing";
 import React from "react";
 
 async function getPdfBase64() {
@@ -52,10 +53,13 @@ export default function HomeScreen() {
           { encoding: FileSystem.EncodingType.Base64 }
         );
       } else {
-        await FileSystem.writeAsStringAsync(
-          uri,
-          base64String,
-          { encoding: FileSystem.EncodingType.Base64 });
+        await FileSystem.writeAsStringAsync(uri, base64String, {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+        await Sharing.shareAsync(uri, {
+          dialogTitle: "PDF salvo com sucesso",
+          UTI: "com.adobe.pdf",
+        });
       }
     } catch (e) {
       console.log("erro ao escrever o arquivo: ", e);
@@ -95,7 +99,7 @@ export default function HomeScreen() {
     }
     console.log(uri);
     await savePdf(pdfBase64, uri);
-    Alert.alert("Sucesso", "Pdf salvo com sucesso");
+
     setIsLoading(false);
   }
 

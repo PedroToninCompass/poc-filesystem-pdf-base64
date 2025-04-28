@@ -45,11 +45,18 @@ export default function HomeScreen() {
 
   async function savePdf(base64String: string, uri: string) {
     try {
-      await FileSystem.StorageAccessFramework.writeAsStringAsync(
-        uri,
-        base64String,
-        { encoding: FileSystem.EncodingType.Base64 }
-      );
+      if (Platform.OS === "android") {
+        await FileSystem.StorageAccessFramework.writeAsStringAsync(
+          uri,
+          base64String,
+          { encoding: FileSystem.EncodingType.Base64 }
+        );
+      } else {
+        await FileSystem.writeAsStringAsync(
+          uri,
+          base64String,
+          { encoding: FileSystem.EncodingType.Base64 });
+      }
     } catch (e) {
       console.log("erro ao escrever o arquivo: ", e);
       return;
@@ -75,8 +82,12 @@ export default function HomeScreen() {
     }
     const randomString = new Date().getTime().toString();
     const filename = `${randomString}.pdf`;
-    const uri = await createFile(filename);
-
+    let uri: string | undefined;
+    if (Platform.OS === "android") {
+      uri = await createFile(filename);
+    } else {
+      uri = `${FileSystem.documentDirectory}${filename}`;
+    }
     if (!uri) {
       Alert.alert("Erro", "Erro ao criar o arquivo");
       setIsLoading(false);
